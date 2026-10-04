@@ -1,3 +1,20 @@
 const base = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api/v1'
-async function request(path, options = {}) { const response = await fetch(`${base}${path}`, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options }); if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || '请求失败'); return response.json() }
-export const api = { login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }), dashboard: () => request('/dashboard'), projects: () => request('/projects'), tasks: (params = {}) => request(`/tasks?${new URLSearchParams(Object.entries(params).filter(([,v]) => v))}`), createProject: (payload) => request('/projects', { method: 'POST', body: JSON.stringify(payload) }), createTask: (projectId, payload) => request(`/projects/${projectId}/tasks`, { method: 'POST', body: JSON.stringify(payload) }), updateStatus: (id, status) => request(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }) }
+
+async function request(path, options = {}) {
+    const response = await fetch(`${base}${path}`, {headers: {'Content-Type': 'application/json', ...(options.headers || {})}, ...options});
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || '请求失败');
+    return response.json()
+}
+
+export const api = {
+    login: (payload) => request('/auth/login', {method: 'POST', body: JSON.stringify(payload)}),
+    dashboard: () => request('/dashboard'),
+    projects: () => request('/projects'),
+    tasks: (params = {}) => request(`/tasks?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}`),
+    createProject: (payload) => request('/projects', {method: 'POST', body: JSON.stringify(payload)}),
+    createTask: (projectId, payload) => request(`/projects/${projectId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    }),
+    updateStatus: (id, status) => request(`/tasks/${id}/status`, {method: 'PATCH', body: JSON.stringify({status})})
+}
