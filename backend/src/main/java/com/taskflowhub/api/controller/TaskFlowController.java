@@ -43,6 +43,24 @@ public class TaskFlowController {
                 "user", Map.of("id", user.getId(), "name", user.getDisplayName(), "username", user.getUsername(), "role", user.getRole()));
     }
 
+    @PostMapping("/auth/register")
+    public Map<String, Object> register(@RequestBody RegisterRequest request) {
+        if (request.username() == null || !request.username().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请输入有效的邮箱");
+        if (request.password() == null || request.password().length() < 6)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码至少需要 6 位");
+        if (users.findByUsername(request.username()) != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "账号已存在");
+        UserEntity user = new UserEntity();
+        user.setUsername(request.username());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setDisplayName(request.displayName() == null || request.displayName().isBlank() ? request.username().split("@")[0] : request.displayName());
+        user.setRole("USER");
+        user.setEnabled(true);
+        users.insert(user);
+        return Map.of("accessToken", jwt.create(user.getId(), user.getUsername(), user.getRole()), "expiresIn", 7200, "user", Map.of("id", user.getId(), "name", user.getDisplayName(), "username", user.getUsername(), "role", user.getRole()));
+    }
+
     @GetMapping("/dashboard")
     public Map<String, Object> dashboard() {
         return service.dashboard();
@@ -89,6 +107,9 @@ public class TaskFlowController {
         }
     }
 
+    public record RegisterRequest(String username, String password, String displayName) {
+    }
+
     public record LoginRequest(String username, String password) {
     }
 
@@ -102,6 +123,11 @@ public class TaskFlowController {
     public record StatusRequest(@NotBlank String status) {
     }
 }
+
+
+
+
+
 
 
 
