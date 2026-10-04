@@ -1,9 +1,13 @@
 package com.taskflowhub.api.controller;
 
+import com.taskflowhub.api.entity.UserEntity;
+import com.taskflowhub.api.mapper.UserMapper;
 import com.taskflowhub.api.model.*;
+import com.taskflowhub.api.security.JwtTokenService;
 import com.taskflowhub.api.service.TaskFlowService;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -14,16 +18,29 @@ import java.util.*;
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class TaskFlowController {
     private final TaskFlowService service;
+    private final UserMapper users;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenService jwt;
 
-    public TaskFlowController(TaskFlowService service) {
+    public TaskFlowController(TaskFlowService service, UserMapper users, PasswordEncoder passwordEncoder, JwtTokenService jwt) {
         this.service = service;
+        this.users = users;
+        this.passwordEncoder = passwordEncoder;
+        this.jwt = jwt;
     }
 
     @PostMapping("/auth/login")
-    public Map<String, Object> login(@RequestBody LoginRequest r) {
-        if (r.username() == null || r.username().isBlank() || r.password() == null || r.password().isBlank())
+    public Map<String, Object> login(@RequestBody LoginRequest request) {
+        if (request.username() == null || request.username().isBlank() || request.password() == null || request.password().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请输入账号和密码");
-        return Map.of("accessToken", "demo-token", "expiresIn", 7200, "user", Map.of("id", 1, "name", "林小满", "username", r.username(), "role", "项目管理员"));
+        }
+        UserEntity user = users.findByUsername(request.username());
+        System.out.println("LOGIN username=" + request.username() + ", userFound=" + (user != null) + ", hashLength=" + (user == null || user.getPasswordHash() == null ? 0 : user.getPasswordHash().length()) + ", matched=" + (user != null && user.getPasswordHash() != null && passwordEncoder.matches(request.password(), user.getPasswordHash())));
+        if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
+        }
+        return Map.of("accessToken", jwt.create(user.getId(), user.getUsername(), user.getRole()), "expiresIn", 7200,
+                "user", Map.of("id", user.getId(), "name", user.getDisplayName(), "username", user.getUsername(), "role", user.getRole()));
     }
 
     @GetMapping("/dashboard")
@@ -38,10 +55,10 @@ public class TaskFlowController {
     }
 
     @PostMapping("/projects")
-    public Project createProject(@RequestBody ProjectRequest r) {
-        if (r.name() == null || r.name().isBlank())
+    public Project createProject(@RequestBody ProjectRequest request) {
+        if (request.name() == null || request.name().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "项目名称不能为空");
-        return service.createProject(r.name(), r.description(), r.color());
+        return service.createProject(request.name(), request.description(), request.color());
     }
 
     @GetMapping("/tasks")
@@ -51,20 +68,20 @@ public class TaskFlowController {
     }
 
     @PostMapping("/projects/{projectId}/tasks")
-    public Task createTask(@PathVariable("projectId") long projectId, @RequestBody TaskRequest r) {
-        if (r.title() == null || r.title().isBlank())
+    public Task createTask(@PathVariable("projectId") long projectId, @RequestBody TaskRequest request) {
+        if (request.title() == null || request.title().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "任务标题不能为空");
         try {
-            return service.createTask(projectId, r.title(), r.description(), r.priority(), r.assignee(), r.dueDate());
+            return service.createTask(projectId, request.title(), request.description(), request.priority(), request.assignee(), request.dueDate());
         } catch (NoSuchElementException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
     }
 
     @PatchMapping("/tasks/{taskId}/status")
-    public Task updateStatus(@PathVariable("taskId") long taskId, @RequestBody StatusRequest r) {
+    public Task updateStatus(@PathVariable("taskId") long taskId, @RequestBody StatusRequest request) {
         try {
-            return service.updateStatus(taskId, r.status());
+            return service.updateStatus(taskId, request.status());
         } catch (NoSuchElementException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
@@ -85,4 +102,6 @@ public class TaskFlowController {
     public record StatusRequest(@NotBlank String status) {
     }
 }
+
+
 

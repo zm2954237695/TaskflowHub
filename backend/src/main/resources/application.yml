@@ -22,3 +22,7 @@ mybatis-plus:
     map-underscore-to-camel-case: true
   mapper-locations: classpath:/mapper/*.xml
 
+security:
+  jwt:
+    secret: taskflowhub-demo-secret-key-change-me-2026
+    expiration-ms: 7200000
