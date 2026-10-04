@@ -45,13 +45,13 @@ public class TaskFlowController {
     }
 
     @GetMapping("/tasks")
-    public Map<String, Object> tasks(@RequestParam(required = false) Long projectId, @RequestParam(required = false) String status, @RequestParam(required = false) String keyword) {
+    public Map<String, Object> tasks(@RequestParam(value = "projectId", required = false) Long projectId, @RequestParam(value = "status", required = false) String status, @RequestParam(value = "keyword", required = false) String keyword) {
         List<Task> items = service.tasks(projectId, status, keyword);
         return Map.of("items", items, "total", items.size());
     }
 
     @PostMapping("/projects/{projectId}/tasks")
-    public Task createTask(@PathVariable long projectId, @RequestBody TaskRequest r) {
+    public Task createTask(@PathVariable("projectId") long projectId, @RequestBody TaskRequest r) {
         if (r.title() == null || r.title().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "任务标题不能为空");
         try {
@@ -62,7 +62,7 @@ public class TaskFlowController {
     }
 
     @PatchMapping("/tasks/{taskId}/status")
-    public Task updateStatus(@PathVariable long taskId, @RequestBody StatusRequest r) {
+    public Task updateStatus(@PathVariable("taskId") long taskId, @RequestBody StatusRequest r) {
         try {
             return service.updateStatus(taskId, r.status());
         } catch (NoSuchElementException e) {
@@ -85,3 +85,4 @@ public class TaskFlowController {
     public record StatusRequest(@NotBlank String status) {
     }
 }
+
